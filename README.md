@@ -1,58 +1,61 @@
-# python_extract_phone_xls
-
-### Bước 1: Cài đặt Python
-1. Tải Python từ trang chủ: https://www.python.org/downloads/
-2. Chọn phiên bản Python 3.9 (khuyến nghị)
-3. Trong quá trình cài đặt, nhớ tích vào "Add Python to PATH"
-
-### Bước 2: Tạo thư mục dự án và môi trường ảo
-
-```bash
-# Tạo thư mục dự án
-mkdir phone_extractor
-cd phone_extractor
-
-# Tạo môi trường ảo
-python -m venv venv
-
-# Kích hoạt môi trường ảo
-# Trên Windows:
-venv\Scripts\activate
-# Trên Linux/Mac:
-source venv/bin/activate
-```
-
-### Bước 3: Cài đặt các thư viện cần thiết
-
-```bash
-# Nâng cấp pip
-pip install --upgrade pip
-
-# Cài đặt các thư viện
-pip install pandas
-pip install openpyxl==3.1.2
-```
-
-### Bước 4: Tạo file code
-Tạo file `app.py` và copy code sau vào:
-### Bước 5: Chạy chương trình
-
-```bash
-# Đảm bảo đang ở trong môi trường ảo
-python app.py
-```
-
-### Cách sử dụng:
-1. Chương trình sẽ hiển thị một cửa sổ với nút "Chọn file Excel"
-2. Nhấn nút để chọn file Excel cần xử lý
-3. Chương trình sẽ:
-   - Tìm tất cả số điện thoại trong file Excel
-   - Chuẩn hóa số điện thoại (thêm số 0 cho số 9 chữ số)
-   - Loại bỏ các số không hợp lệ (00x, 01x, 02x, 030x, 031x)
-   - Tạo file txt chứa danh sách số điện thoại đã xử lý
-
-### Lưu ý:
-- File kết quả sẽ được lưu trong cùng thư mục với file Excel gốc
-- Tên file kết quả sẽ có dạng: `phone_numbers_YYYYMMDD_HHMMSS.txt`
-- Mỗi số điện thoại sẽ được ghi trên một dòng
-- Các số điện thoại sẽ được sắp xếp theo thứ tự tăng dần
+# Cách sử dụng
+## Chuẩn bị file Excel
+File Excel phải có ít nhất 2 cột:
+Cột chứa tên khách hàng
+Cột chứa số điện thoại
+Hỗ trợ cả định dạng .xls và .xlsx
+Số điện thoại có thể ở các định dạng:
+10 số (VD: 0912345678)
+9 số (VD: 912345678)
+Có mã quốc gia (VD: 84912345678)
+Có dấu phân cách (VD: 0912-345-678)
+## Các bước thực hiện
+Chọn file Excel
+Nhấn nút "Chọn file Excel"
+Tìm và chọn file Excel cần xử lý
+Chọn Sheet
+Chọn sheet chứa dữ liệu từ danh sách dropdown
+Nếu file chỉ có 1 sheet, hệ thống sẽ tự động chọn
+## Chọn cột dữ liệu
+Chọn cột chứa tên khách hàng từ dropdown "Cột tên"
+Chọn cột chứa số điện thoại từ dropdown "Cột SĐT"
+Xử lý dữ liệu
+Nhấn nút "Xử lý" để bắt đầu trích xuất
+Chờ quá trình xử lý hoàn tất
+## Kết quả
+File kết quả "results.xlsx" sẽ được tạo trong cùng thư mục với file gốc
+File kết quả bao gồm 3 cột:
+No id: Số thứ tự
+Khách hàng: Tên khách hàng
+sdt: Số điện thoại đã chuẩn hóa
+## Quy tắc chuẩn hóa số điện thoại
+Số điện thoại hợp lệ phải:
+Có 10 số
+Bắt đầu bằng số 0
+Không bắt đầu bằng: 00, 01, 02, 030, 031
+Các trường hợp xử lý:
+Số 9 chữ số: thêm số 0 vào đầu
+Số có mã 84: chuyển thành số 0
+Loại bỏ các ký tự đặc biệt (-, , ., space)
+## Xử lý lỗi thường gặp
+Không đọc được file Excel
+Kiểm tra định dạng file (.xls hoặc .xlsx)
+Đảm bảo file không bị hỏng
+Đóng file Excel nếu đang mở
+Không tìm thấy số điện thoại hợp lệ
+Kiểm tra định dạng số trong file gốc
+Đảm bảo chọn đúng cột số điện thoại
+Kiểm tra số điện thoại có đúng định dạng Việt Nam
+## Lỗi khi ghi file kết quả
+Đảm bảo đã đóng file results.xlsx
+Kiểm tra quyền ghi trong thư mục
+Đảm bảo ổ đĩa còn đủ dung lượng
+## Lưu ý quan trọng
+Sao lưu dữ liệu gốc trước khi xử lý
+Không đổi tên file results.xlsx trong quá trình sử dụng
+Mỗi lần xử lý sẽ thêm dữ liệu mới vào cuối file results.xlsx
+Kiểm tra kết quả sau mỗi lần xử lý
+## Hỗ trợ
+Nếu cần hỗ trợ thêm, vui lòng liên hệ:
+Email: khanhvo1592@gmail.com
+Phone: 0914257604

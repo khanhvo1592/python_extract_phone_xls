@@ -11,12 +11,18 @@ def is_valid_phone(value):
     if pd.isna(value):
         return False
     phone = re.sub(r'\D', '', str(value))
+    if phone.startswith('84'):
+        phone = '0' + phone[2:]
     if len(phone) == 9:
         return True
     if len(phone) == 10 and phone.startswith('0'):
         if phone.startswith(('00', '01', '02', '030', '031')):
             return False
         return True
+    if len(phone) > 10 and phone.startswith('84'):
+        phone = '0' + phone[2:]
+        if len(phone) == 10 and not phone.startswith(('00', '01', '02', '030', '031')):
+            return True
     return False
 
 def standardize_phone_number(value):
@@ -24,43 +30,96 @@ def standardize_phone_number(value):
         return None
     phone = re.sub(r'\D', '', str(value))
     
+    if phone.startswith('84'):
+        phone = '0' + phone[2:]
+    
     if len(phone) == 9:
-        standardized = '0' + phone
-        if standardized.startswith(('00', '01', '02', '030', '031')):
+        phone = '0' + phone
+    elif len(phone) > 10:
+        if phone.startswith('84'):
+            phone = '0' + phone[2:]
+        else:
             return None
-        return standardized
-    elif len(phone) == 10 and phone.startswith('0'):
+    
+    if len(phone) == 10 and phone.startswith('0'):
         if phone.startswith(('00', '01', '02', '030', '031')):
             return None
         return phone
+    
     return None
 
 def process_excel(file_path, name_column, phone_column, sheet_name):
     try:
         results = []
-        df = pd.read_excel(file_path, sheet_name=sheet_name)
+        # Đọc Excel với tất cả các cột dưới dạng chuỗi và thêm converters để xử lý cột số điện thoại
+        df = pd.read_excel(
+            file_path, 
+            sheet_name=sheet_name,
+            dtype=str,  # Đọc tất cả các cột dưới dạng chuỗi
+            converters={phone_column: lambda x: str(x).strip()}  # Đảm bảo cột điện thoại được xử lý đúng
+        )
         
         # Xử lý từng dòng trong DataFrame
         for index, row in df.iterrows():
-            phone = standardize_phone_number(row[phone_column])
+            # Chuyển đổi giá trị số điện thoại thành chuỗi và loại bỏ các khoảng trắng
+            phone_value = str(row[phone_column]).strip() if not pd.isna(row[phone_column]) else None
+            
+            # Thêm log để kiểm tra giá trị trước khi chuẩn hóa
+            print(f"Raw phone value: {phone_value}")
+            
+            phone = standardize_phone_number(phone_value)
+            
+            # Thêm log để kiểm tra giá trị sau khi chuẩn hóa
+            print(f"Standardized phone: {phone}")
+            
             if phone and not phone.startswith(('00', '01', '02', '030', '031')):
+                # Đảm bảo tên khách hàng cũng được xử lý đúng
+                customer_name = str(row[name_column]).strip() if not pd.isna(row[name_column]) else ""
                 results.append({
-                    'id': len(results) + 1,
-                    'customer_name': row[name_column],
+                    'customer_name': customer_name,
                     'phone': phone
                 })
         
         if results:
-            # Tạo DataFrame mới và xuất ra Excel
-            output_df = pd.DataFrame(results)
-            output_df.columns = ['No id', 'Khách hàng', 'sdt']
+            output_file = os.path.join(os.path.dirname(file_path), 'results.xlsx')
             
-            output_file = os.path.join(
-                os.path.dirname(file_path),
-                f'phone_numbers_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-            )
+            # Kiểm tra xem file results.xlsx đã tồn tại chưa
+            if os.path.exists(output_file):
+                # Đọc file hiện có với dtype=str để tránh mất số 0
+                existing_df = pd.read_excel(output_file, dtype=str)
+                last_id = int(existing_df['No id'].max()) if not existing_df.empty else 0
+                
+                # Tạo DataFrame mới với ID tiếp theo
+                new_results = []
+                for idx, result in enumerate(results, start=1):
+                    new_results.append({
+                        'No id': str(last_id + idx),  # Chuyển ID thành chuỗi
+                        'Khách hàng': result['customer_name'],
+                        'sdt': result['phone']
+                    })
+                
+                new_df = pd.DataFrame(new_results)
+                # Gộp DataFrame cũ và mới
+                output_df = pd.concat([existing_df, new_df], ignore_index=True)
+            else:
+                # Tạo file mới nếu chưa tồn tại
+                new_results = []
+                for idx, result in enumerate(results, start=1):
+                    new_results.append({
+                        'No id': str(idx),  # Chuyển ID thành chuỗi
+                        'Khách hàng': result['customer_name'],
+                        'sdt': result['phone']
+                    })
+                output_df = pd.DataFrame(new_results)
             
-            output_df.to_excel(output_file, index=False)
+            # Ghi ra file Excel với định dạng chuỗi cho tất cả các cột
+            with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+                output_df.to_excel(writer, index=False)
+                worksheet = writer.sheets['Sheet1']
+                
+                # Đặt định dạng text cho cột số điện thoại
+                for idx, cell in enumerate(worksheet['C'], 1):  # Cột C là cột 'sdt'
+                    cell.number_format = '@'
             
             messagebox.showinfo("Thành công", 
                               f"Đã tìm thấy {len(results)} số điện thoại.\nĐã lưu vào file {output_file}")
