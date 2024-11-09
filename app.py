@@ -6,6 +6,8 @@ from datetime import datetime
 import sys
 import os
 from tkinter import ttk
+from pathlib import Path
+import glob
 
 def is_valid_phone(value):
     if pd.isna(value):
@@ -133,6 +135,7 @@ class ExcelProcessor:
     def __init__(self, root):
         self.root = root
         self.file_path = None
+        self.folder_path = None
         self.columns = []
         self.sheets = []
         self.current_df = None
@@ -149,18 +152,18 @@ class ExcelProcessor:
         center_y = int(screen_height/2 - window_height/2)
         self.root.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
         
-        # File selection
-        label = tk.Label(self.root, text="Chọn file Excel để trích xuất số điện thoại", font=("Arial", 10))
-        label.pack(pady=20)
+        # # File selection
+        # label = tk.Label(self.root, text="Chọn file Excel để trích xuất số điện thoại", font=("Arial", 10))
+        # label.pack(pady=20)
 
-        select_button = tk.Button(
-            self.root,
-            text="Chọn file Excel",
-            command=self.select_file,
-            width=20,
-            height=2
-        )
-        select_button.pack(pady=10)
+        # select_button = tk.Button(
+        #     self.root,
+        #     text="Chọn file Excel",
+        #     command=self.select_file,
+        #     width=20,
+        #     height=2
+        # )
+        # select_button.pack(pady=10)
         
         # Sheet selection
         self.sheet_frame = tk.Frame(self.root)
@@ -194,6 +197,30 @@ class ExcelProcessor:
             state='disabled'
         )
         self.process_button.pack(pady=10)
+
+        # Thêm frame cho các nút chọn
+        self.button_frame = tk.Frame(self.root)
+        self.button_frame.pack(pady=10)
+        
+        # Nút chọn file đơn lẻ
+        select_file_button = tk.Button(
+            self.button_frame,
+            text="Chọn file Excel",
+            command=self.select_file,
+            width=20,
+            height=2
+        )
+        select_file_button.grid(row=0, column=0, padx=5)
+        
+        # Nút chọn folder
+        select_folder_button = tk.Button(
+            self.button_frame,
+            text="Chọn thư mục Excel",
+            command=self.select_folder,
+            width=20,
+            height=2
+        )
+        select_folder_button.grid(row=0, column=1, padx=5)
 
     def select_file(self):
         self.file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx *.xls")])
@@ -246,6 +273,67 @@ class ExcelProcessor:
             return
         
         process_excel(self.file_path, self.name_column_cb.get(), self.phone_column_cb.get(), self.sheet_cb.get())
+
+    def select_folder(self):
+        self.folder_path = filedialog.askdirectory()
+        if self.folder_path:
+            if messagebox.askyesno("Xác nhận", "Bạn có muốn quét tất cả file Excel trong thư mục này?"):
+                self.process_folder()
+
+    def process_folder(self):
+        try:
+            results = []
+            excel_files = []
+            
+            # Tìm tất cả file Excel trong thư mục
+            for ext in ('*.xlsx', '*.xls'):
+                excel_files.extend(glob.glob(os.path.join(self.folder_path, '**', ext), recursive=True))
+            
+            if not excel_files:
+                messagebox.showinfo("Thông báo", "Không tìm thấy file Excel nào trong thư mục!")
+                return
+            
+            for file_path in excel_files:
+                try:
+                    xls = pd.ExcelFile(file_path)
+                    file_name = os.path.basename(file_path)
+                    
+                    for sheet_name in xls.sheet_names:
+                        df = pd.read_excel(
+                            file_path,
+                            sheet_name=sheet_name,
+                            dtype=str
+                        )
+                        
+                        # Quét tất cả các cột để tìm số điện thoại
+                        for column in df.columns:
+                            for value in df[column]:
+                                phone = standardize_phone_number(value)
+                                if phone:
+                                    results.append({
+                                        'phone': phone,
+                                        'source': f"{file_name} - {sheet_name}"
+                                    })
+                except Exception as e:
+                    print(f"Lỗi khi xử lý file {file_path}: {str(e)}")
+                    continue
+            
+            if results:
+                # Ghi kết quả ra file txt
+                output_file = os.path.join(self.folder_path, 'phone_numbers.txt')
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    f.write("STT | Số điện thoại | Nguồn\n")
+                    f.write("-" * 50 + "\n")
+                    for idx, result in enumerate(results, 1):
+                        f.write(f"{idx} | {result['phone']} | {result['source']}\n")
+                
+                messagebox.showinfo("Thành công", 
+                                  f"Đã tìm thấy {len(results)} số điện thoại.\nĐã lưu vào file {output_file}")
+            else:
+                messagebox.showinfo("Thông báo", "Không tìm thấy số điện thoại hợp lệ nào.")
+                
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Đã xảy ra lỗi khi xử lý thư mục: {str(e)}")
 
 def create_gui():
     root = tk.Tk()
